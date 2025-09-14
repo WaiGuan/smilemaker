@@ -22,14 +22,11 @@ class DashboardController extends Controller
         $this->strategyFactory = $strategyFactory;
     }
     /**
-     * Show patient dashboard
+     * Show patient welcome page
      */
     public function patient()
     {
-        $user = Auth::user();
-        $dashboardView = $this->strategyFactory->getDashboardView($user);
-        
-        return view($dashboardView['view'], $dashboardView['data']);
+        return view('patient.welcome');
     }
 
     /**

@@ -126,9 +126,10 @@ class DashboardService
                 ->orderBy('appointment_date')
                 ->get();
 
-            // Get recent appointments
+            // Get pending appointments (sorted by nearest appointment date)
             $recentAppointments = Appointment::with(['service', 'patient', 'doctor'])
-                ->orderBy('created_at', 'desc')
+                ->where('status', 'pending')
+                ->orderBy('appointment_date', 'asc')
                 ->limit(10)
                 ->get();
 

@@ -130,7 +130,8 @@ class DoctorService
             Log::error('Get Doctors Error: ' . $e->getMessage());
             return [
                 'success' => false,
-                'error' => 'Failed to retrieve doctors: ' . $e->getMessage()
+                'error' => 'Failed to retrieve doctors: ' . $e->getMessage(),
+                'doctors' => collect()
             ];
         }
     }

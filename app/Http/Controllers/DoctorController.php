@@ -62,15 +62,21 @@ class DoctorController extends Controller
      */
     public function index()
     {
-        $result = $this->doctorService->getAllDoctors(10);
-        
-        if ($result['success']) {
-            $doctors = $result['doctors'];
-        } else {
-            $doctors = collect();
+        try {
+            $result = $this->doctorService->getAllDoctors(10);
+            
+            if ($result['success']) {
+                $doctors = $result['doctors'];
+            } else {
+                $doctors = collect();
+            }
+            
+            return view('doctors.index', compact('doctors'));
+        } catch (\Exception $e) {
+            \Log::error('Doctor Index Error: ' . $e->getMessage());
+            return redirect()->route('admin.dashboard')
+                ->with('error', 'Failed to load doctors list.');
         }
-        
-        return view('doctors.index', compact('doctors'));
     }
 
     /**
@@ -145,7 +151,7 @@ class DoctorController extends Controller
         $result = $this->doctorService->deleteDoctor($doctor);
 
         if ($result['success']) {
-            return redirect()->route('doctors.index')
+            return redirect()->route('admin.dashboard')
                 ->with('success', $result['message']);
         } else {
             return redirect()->back()

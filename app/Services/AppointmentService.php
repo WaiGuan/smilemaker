@@ -71,6 +71,48 @@ class AppointmentService
     }
 
     /**
+     * Check if a specific doctor is available at the given time
+     */
+    public function checkDoctorAvailability(int $doctorId, string $appointmentDate): array
+    {
+        try {
+            $doctor = User::find($doctorId);
+            
+            if (!$doctor || !$doctor->isDoctor()) {
+                return [
+                    'available' => false,
+                    'message' => 'Doctor not found or invalid.'
+                ];
+            }
+
+            // Check if doctor has any appointments at this time
+            $hasAppointment = $doctor->doctorAppointments()
+                ->where('appointment_date', $appointmentDate)
+                ->where('status', '!=', 'cancelled')
+                ->exists();
+
+            if ($hasAppointment) {
+                return [
+                    'available' => false,
+                    'message' => 'Doctor is not available at the selected time. Please choose a different time slot.'
+                ];
+            }
+
+            return [
+                'available' => true,
+                'message' => 'Doctor is available at the selected time.'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Doctor Availability Check Error: ' . $e->getMessage());
+            return [
+                'available' => false,
+                'message' => 'Unable to check doctor availability. Please try again.'
+            ];
+        }
+    }
+
+    /**
      * Get an available doctor for the given time slot
      */
     private function getAvailableDoctor(string $appointmentDate): ?User

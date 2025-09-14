@@ -84,9 +84,11 @@
             </div>
             
             <!-- Pagination -->
-            <div class="d-flex justify-content-center">
-                {{ $doctors->links() }}
-            </div>
+            @if($doctors->hasPages())
+                <div class="d-flex justify-content-center">
+                    {{ $doctors->links() }}
+                </div>
+            @endif
         @else
             <div class="text-center py-5">
                 <i class="fas fa-user-md fa-3x text-muted mb-3"></i>

@@ -62,7 +62,7 @@
                     @if(auth()->user()->isPatient())
                         <li class="nav-item">
                             <a class="nav-link" href="{{ route('patient.dashboard') }}">
-                                <i class="fas fa-home me-1"></i>Dashboard
+                                <i class="fas fa-home me-1"></i>Home
                             </a>
                         </li>
                         <li class="nav-item">

@@ -6,6 +6,9 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-cogs me-2"></i>Admin Dashboard</h2>
     <div>
+        <a href="{{ route('admin.doctors.index') }}" class="btn btn-primary me-2">
+            <i class="fas fa-user-md me-2"></i>Manage Doctors
+        </a>
         <a href="{{ route('admin.revenue') }}" class="btn btn-success">
             <i class="fas fa-chart-line me-2"></i>Revenue Report
         </a>
@@ -137,12 +140,12 @@
     </div>
 </div>
 
-<!-- Recent Appointments -->
+<!-- Pending Appointments -->
 <div class="row mt-4">
     <div class="col-12">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5><i class="fas fa-history me-2"></i>Recent Appointments</h5>
+                <h5><i class="fas fa-clock me-2"></i>Pending Appointments</h5>
                 <a href="{{ route('appointments.my') }}" class="btn btn-sm btn-outline-primary">View All</a>
             </div>
             <div class="card-body">
@@ -185,7 +188,7 @@
                         </table>
                     </div>
                 @else
-                    <p class="text-muted text-center">No recent appointments</p>
+                    <p class="text-muted text-center">No pending appointments</p>
                 @endif
             </div>
         </div>

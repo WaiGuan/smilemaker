@@ -50,14 +50,62 @@ class AppointmentController extends Controller
         $validator = Validator::make($request->all(), [
             'service_id' => 'required|exists:services,id',
             'doctor_id' => 'nullable|exists:users,id',
-            'appointment_date' => 'required|date|after:now',
+            'appointment_date' => [
+                'required',
+                'date',
+                'after:' . now()->addHour()->format('Y-m-d H:i:s'),
+                'before:' . now()->addMonths(3)->format('Y-m-d H:i:s'),
+                function ($attribute, $value, $fail) {
+                    $appointmentDate = Carbon::parse($value);
+                    
+                    // Check business hours (8 AM to 6 PM) - applies to all days including weekends
+                    $hour = $appointmentDate->hour;
+                    if ($hour < 8 || $hour >= 18) {
+                        $fail('Appointments can only be booked between 8:00 AM and 6:00 PM.');
+                        return;
+                    }
+                    
+                    // Check if appointment is at least 1 hour from now
+                    if ($appointmentDate->isPast() || now()->diffInHours($appointmentDate) < 1) {
+                        $fail('Appointments must be booked at least 1 hour in advance.');
+                        return;
+                    }
+                    
+                    // Check if appointment is not more than 3 months in advance
+                    if ($appointmentDate->diffInMonths(now()) > 3) {
+                        $fail('Appointments cannot be booked more than 3 months in advance.');
+                        return;
+                    }
+                }
+            ],
             'notes' => 'nullable|string|max:1000',
+        ], [
+            'appointment_date.after' => 'Appointment must be at least 1 hour from now.',
+            'appointment_date.before' => 'Appointment cannot be more than 3 months in advance.',
+            'service_id.required' => 'Please select a service.',
+            'service_id.exists' => 'Selected service is invalid.',
+            'doctor_id.exists' => 'Selected doctor is invalid.',
+            'notes.max' => 'Notes cannot exceed 1000 characters.',
         ]);
 
         if ($validator->fails()) {
             return redirect()->back()
                 ->withErrors($validator)
                 ->withInput();
+        }
+
+        // Additional validation for doctor availability
+        if ($request->doctor_id) {
+            $doctorAvailability = $this->appointmentService->checkDoctorAvailability(
+                $request->doctor_id, 
+                $request->appointment_date
+            );
+            
+            if (!$doctorAvailability['available']) {
+                return redirect()->back()
+                    ->with('error', $doctorAvailability['message'])
+                    ->withInput();
+            }
         }
 
         $patient = Auth::user();
