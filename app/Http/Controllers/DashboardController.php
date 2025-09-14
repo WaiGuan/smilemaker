@@ -6,38 +6,37 @@ use App\Models\Appointment;
 use App\Models\Payment;
 use App\Models\Service;
 use App\Models\User;
+use App\Services\DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
+    protected $dashboardService;
+
+    public function __construct(DashboardService $dashboardService)
+    {
+        $this->dashboardService = $dashboardService;
+    }
     /**
      * Show patient dashboard
      */
     public function patient()
     {
         $user = Auth::user();
+        $result = $this->dashboardService->getPatientDashboard($user);
 
-        // Get upcoming appointments
-        $upcomingAppointments = $user->patientAppointments()
-            ->with(['service', 'doctor'])
-            ->where('appointment_date', '>', now())
-            ->where('status', '!=', 'cancelled')
-            ->orderBy('appointment_date')
-            ->limit(5)
-            ->get();
-
-        // Get recent appointments
-        $recentAppointments = $user->patientAppointments()
-            ->with(['service', 'doctor'])
-            ->orderBy('appointment_date', 'desc')
-            ->limit(5)
-            ->get();
-
-        // Get unread notifications count
-        $unreadNotifications = $user->notifications()->where('is_read', false)->count();
-
-        return view('dashboard.patient', compact('upcomingAppointments', 'recentAppointments', 'unreadNotifications'));
+        if ($result['success']) {
+            $data = $result['data'];
+            return view('dashboard.patient', $data);
+        } else {
+            return view('dashboard.patient', [
+                'upcomingAppointments' => collect(),
+                'recentAppointments' => collect(),
+                'unreadNotifications' => 0,
+                'appointmentStats' => []
+            ]);
+        }
     }
 
     /**
@@ -46,28 +45,19 @@ class DashboardController extends Controller
     public function doctor()
     {
         $user = Auth::user();
+        $result = $this->dashboardService->getDoctorDashboard($user);
 
-        // Get today's appointments
-        $todayAppointments = $user->doctorAppointments()
-            ->with(['service', 'patient'])
-            ->whereDate('appointment_date', today())
-            ->where('status', '!=', 'cancelled')
-            ->orderBy('appointment_date')
-            ->get();
-
-        // Get upcoming appointments
-        $upcomingAppointments = $user->doctorAppointments()
-            ->with(['service', 'patient'])
-            ->where('appointment_date', '>', now())
-            ->where('status', '!=', 'cancelled')
-            ->orderBy('appointment_date')
-            ->limit(5)
-            ->get();
-
-        // Get unread notifications count
-        $unreadNotifications = $user->notifications()->where('is_read', false)->count();
-
-        return view('dashboard.doctor', compact('todayAppointments', 'upcomingAppointments', 'unreadNotifications'));
+        if ($result['success']) {
+            $data = $result['data'];
+            return view('dashboard.doctor', $data);
+        } else {
+            return view('dashboard.doctor', [
+                'todayAppointments' => collect(),
+                'upcomingAppointments' => collect(),
+                'unreadNotifications' => 0,
+                'doctorStats' => []
+            ]);
+        }
     }
 
     /**
@@ -76,45 +66,24 @@ class DashboardController extends Controller
     public function admin()
     {
         $user = Auth::user();
+        $result = $this->dashboardService->getAdminDashboard($user);
 
-        // Get statistics
-        $totalPatients = User::where('role', 'patient')->count();
-        $totalDoctors = User::where('role', 'doctor')->count();
-        $totalAppointments = Appointment::count();
-        $totalRevenue = Payment::where('status', 'paid')->sum('amount');
-
-        // Get today's appointments
-        $todayAppointments = Appointment::with(['service', 'patient', 'doctor'])
-            ->whereDate('appointment_date', today())
-            ->where('status', '!=', 'cancelled')
-            ->orderBy('appointment_date')
-            ->get();
-
-        // Get recent appointments
-        $recentAppointments = Appointment::with(['service', 'patient', 'doctor'])
-            ->orderBy('created_at', 'desc')
-            ->limit(10)
-            ->get();
-
-        // Get pending payments
-        $pendingPayments = Payment::with(['appointment.patient', 'appointment.service'])
-            ->where('status', 'pending')
-            ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get();
-
-        // Get unread notifications count
-        $unreadNotifications = $user->notifications()->where('is_read', false)->count();
-
-        return view('dashboard.admin', compact(
-            'totalPatients',
-            'totalDoctors',
-            'totalAppointments',
-            'totalRevenue',
-            'todayAppointments',
-            'recentAppointments',
-            'pendingPayments',
-            'unreadNotifications'
-        ));
+        if ($result['success']) {
+            $data = $result['data'];
+            return view('dashboard.admin', $data);
+        } else {
+            return view('dashboard.admin', [
+                'totalPatients' => 0,
+                'totalDoctors' => 0,
+                'totalAppointments' => 0,
+                'totalRevenue' => 0,
+                'todayAppointments' => collect(),
+                'recentAppointments' => collect(),
+                'pendingPayments' => collect(),
+                'unreadNotifications' => 0,
+                'revenueStats' => [],
+                'appointmentStats' => []
+            ]);
+        }
     }
 }

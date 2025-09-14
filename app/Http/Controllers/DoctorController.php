@@ -3,12 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\DoctorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 class DoctorController extends Controller
 {
+    protected $doctorService;
+
+    public function __construct(DoctorService $doctorService)
+    {
+        $this->doctorService = $doctorService;
+    }
     /**
      * Show the form for creating a new doctor
      */
@@ -38,19 +45,16 @@ class DoctorController extends Controller
                 ->withInput($request->except('password', 'password_confirmation'));
         }
 
-        // Create the doctor
-        $doctor = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => 'doctor',
-            'phone' => $request->phone,
-            'specialization' => $request->specialization,
-            'license_number' => $request->license_number,
-        ]);
+        $result = $this->doctorService->createDoctor($request->all());
 
-        return redirect()->route('admin.dashboard')
-            ->with('success', 'Doctor registered successfully!');
+        if ($result['success']) {
+            return redirect()->route('admin.dashboard')
+                ->with('success', $result['message']);
+        } else {
+            return redirect()->back()
+                ->with('error', $result['error'])
+                ->withInput($request->except('password', 'password_confirmation'));
+        }
     }
 
     /**
@@ -58,7 +62,14 @@ class DoctorController extends Controller
      */
     public function index()
     {
-        $doctors = User::where('role', 'doctor')->paginate(10);
+        $result = $this->doctorService->getAllDoctors(10);
+        
+        if ($result['success']) {
+            $doctors = $result['doctors'];
+        } else {
+            $doctors = collect();
+        }
+        
         return view('doctors.index', compact('doctors'));
     }
 
@@ -110,17 +121,16 @@ class DoctorController extends Controller
                 ->withInput();
         }
 
-        // Update the doctor
-        $doctor->update([
-            'name' => $request->name,
-            'email' => $request->email,
-            'phone' => $request->phone,
-            'specialization' => $request->specialization,
-            'license_number' => $request->license_number,
-        ]);
+        $result = $this->doctorService->updateDoctor($doctor, $request->all());
 
-        return redirect()->route('admin.doctors.show', $doctor)
-            ->with('success', 'Doctor updated successfully!');
+        if ($result['success']) {
+            return redirect()->route('admin.doctors.show', $doctor)
+                ->with('success', $result['message']);
+        } else {
+            return redirect()->back()
+                ->with('error', $result['error'])
+                ->withInput();
+        }
     }
 
     /**
@@ -132,15 +142,14 @@ class DoctorController extends Controller
             abort(404);
         }
 
-        // Check if doctor has any appointments
-        if ($doctor->doctorAppointments()->count() > 0) {
+        $result = $this->doctorService->deleteDoctor($doctor);
+
+        if ($result['success']) {
+            return redirect()->route('doctors.index')
+                ->with('success', $result['message']);
+        } else {
             return redirect()->back()
-                ->with('error', 'Cannot delete doctor with existing appointments.');
+                ->with('error', $result['error']);
         }
-
-        $doctor->delete();
-
-        return redirect()->route('doctors.index')
-            ->with('success', 'Doctor deleted successfully!');
     }
 }

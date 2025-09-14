@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\AuthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -10,6 +11,12 @@ use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
+    protected $authService;
+
+    public function __construct(AuthService $authService)
+    {
+        $this->authService = $authService;
+    }
     /**
      * Show the login form
      */
@@ -37,24 +44,16 @@ class AuthController extends Controller
 
         // Attempt to authenticate the user
         $credentials = $request->only('email', 'password');
+        $result = $this->authService->login($credentials, $request->filled('remember'));
 
-        if (Auth::attempt($credentials, $request->filled('remember'))) {
+        if ($result['success']) {
             $request->session()->regenerate();
-
-            // Redirect based on user role
-            $user = Auth::user();
-            if ($user->isAdmin()) {
-                return redirect()->intended('/admin/dashboard');
-            } elseif ($user->isDoctor()) {
-                return redirect()->intended('/doctor/dashboard');
-            } else {
-                return redirect()->intended('/patient/dashboard');
-            }
+            return redirect()->intended($result['redirect_url']);
         }
 
         // If authentication fails
         return redirect()->back()
-            ->withErrors(['email' => 'The provided credentials do not match our records.'])
+            ->withErrors(['email' => $result['error']])
             ->withInput($request->except('password'));
     }
 
@@ -85,20 +84,16 @@ class AuthController extends Controller
                 ->withInput($request->except('password', 'password_confirmation'));
         }
 
-        // Create the user (patients can register themselves)
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => 'patient', // Only patients can register
-            'phone' => $request->phone,
-        ]);
+        $result = $this->authService->register($request->all());
 
-        // Log the user in
-        Auth::login($user);
-
-        return redirect()->route('patient.dashboard')
-            ->with('success', 'Registration successful! Welcome to our dental clinic.');
+        if ($result['success']) {
+            return redirect()->route('patient.dashboard')
+                ->with('success', $result['message']);
+        } else {
+            return redirect()->back()
+                ->with('error', $result['error'])
+                ->withInput($request->except('password', 'password_confirmation'));
+        }
     }
 
     /**
@@ -106,13 +101,13 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
-        Auth::logout();
+        $result = $this->authService->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
         return redirect()->route('login')
-            ->with('success', 'You have been logged out successfully.');
+            ->with('success', $result['message']);
     }
 
     /**
@@ -138,17 +133,15 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return redirect()->back()
-                ->withErrors($validator);
+            return redirect()->back()->withErrors($validator);
         }
 
-        $user->update([
-            'name' => $request->name,
-            'email' => $request->email,
-            'phone' => $request->phone,
-        ]);
+        $result = $this->authService->updateProfile($user, $request->all());
 
-        return redirect()->back()
-            ->with('success', 'Profile updated successfully.');
+        if ($result['success']) {
+            return redirect()->back()->with('success', $result['message']);
+        } else {
+            return redirect()->back()->with('error', $result['error']);
+        }
     }
 }

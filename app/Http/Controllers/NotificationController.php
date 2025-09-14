@@ -3,20 +3,31 @@
 namespace App\Http\Controllers;
 
 use App\Models\Notification;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class NotificationController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     /**
      * Show user's notifications
      */
     public function index()
     {
         $user = Auth::user();
-        $notifications = $user->notifications()
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
+        $result = $this->notificationService->getUserNotifications($user, 10);
+
+        if ($result['success']) {
+            $notifications = $result['notifications'];
+        } else {
+            $notifications = collect();
+        }
 
         return view('notifications.index', compact('notifications'));
     }
@@ -26,15 +37,14 @@ class NotificationController extends Controller
      */
     public function markAsRead(Notification $notification)
     {
-        // Check if user owns this notification
-        if ($notification->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized access to notification.');
+        $user = Auth::user();
+        $result = $this->notificationService->markAsRead($notification, $user);
+
+        if ($result['success']) {
+            return redirect()->back()->with('success', $result['message']);
+        } else {
+            return redirect()->back()->with('error', $result['error']);
         }
-
-        $notification->markAsRead();
-
-        return redirect()->back()
-            ->with('success', 'Notification marked as read.');
     }
 
     /**
@@ -43,10 +53,13 @@ class NotificationController extends Controller
     public function markAllAsRead()
     {
         $user = Auth::user();
-        $user->notifications()->update(['is_read' => true]);
+        $result = $this->notificationService->markAllAsRead($user);
 
-        return redirect()->back()
-            ->with('success', 'All notifications marked as read.');
+        if ($result['success']) {
+            return redirect()->back()->with('success', $result['message']);
+        } else {
+            return redirect()->back()->with('error', $result['error']);
+        }
     }
 
     /**
@@ -54,15 +67,14 @@ class NotificationController extends Controller
      */
     public function destroy(Notification $notification)
     {
-        // Check if user owns this notification
-        if ($notification->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized access to notification.');
+        $user = Auth::user();
+        $result = $this->notificationService->deleteNotification($notification, $user);
+
+        if ($result['success']) {
+            return redirect()->back()->with('success', $result['message']);
+        } else {
+            return redirect()->back()->with('error', $result['error']);
         }
-
-        $notification->delete();
-
-        return redirect()->back()
-            ->with('success', 'Notification deleted.');
     }
 
     /**
@@ -71,8 +83,12 @@ class NotificationController extends Controller
     public function unreadCount()
     {
         $user = Auth::user();
-        $count = $user->notifications()->where('is_read', false)->count();
+        $result = $this->notificationService->getUnreadCount($user);
 
-        return response()->json(['count' => $count]);
+        if ($result['success']) {
+            return response()->json(['count' => $result['count']]);
+        } else {
+            return response()->json(['count' => 0]);
+        }
     }
 }
