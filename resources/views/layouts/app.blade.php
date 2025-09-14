@@ -94,7 +94,7 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ route('appointments.my') }}">
-                                <i class="fas fa-calendar-alt me-1"></i>All Appointments
+                                <i class="fas fa-calendar-alt me-1"></i>Appointments
                             </a>
                         </li>
                         <li class="nav-item">

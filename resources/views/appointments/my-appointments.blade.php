@@ -1,15 +1,17 @@
 @extends('layouts.app')
 
-@section('title', 'My Appointments - Dental Clinic')
+@section('title', auth()->user()->isAdmin() ? 'Appointments - Dental Clinic' : 'My Appointments - Dental Clinic')
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-calendar-alt me-2"></i>My Appointments</h2>
-    <div>
-        <a href="{{ route('appointments.index') }}" class="btn btn-primary">
-            <i class="fas fa-calendar-plus me-2"></i>Book New Appointment
-        </a>
-    </div>
+    <h2><i class="fas fa-calendar-alt me-2"></i>{{ auth()->user()->isAdmin() ? 'Appointments' : 'My Appointments' }}</h2>
+    @if(auth()->user()->isPatient())
+        <div>
+            <a href="{{ route('appointments.index') }}" class="btn btn-primary">
+                <i class="fas fa-calendar-plus me-2"></i>Book New Appointment
+            </a>
+        </div>
+    @endif
 </div>
 
 @if($appointments->count() > 0)
@@ -96,10 +98,14 @@
     <div class="text-center py-5">
         <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
         <h4 class="text-muted">No appointments found</h4>
-        <p class="text-muted">You haven't booked any appointments yet.</p>
-        <a href="{{ route('appointments.index') }}" class="btn btn-primary">
-            <i class="fas fa-calendar-plus me-2"></i>Book Your First Appointment
-        </a>
+        @if(auth()->user()->isAdmin())
+            <p class="text-muted">No appointments have been booked yet.</p>
+        @else
+            <p class="text-muted">You haven't booked any appointments yet.</p>
+            <a href="{{ route('appointments.index') }}" class="btn btn-primary">
+                <i class="fas fa-calendar-plus me-2"></i>Book Your First Appointment
+            </a>
+        @endif
     </div>
 @endif
 @endsection
