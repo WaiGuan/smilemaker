@@ -7,16 +7,19 @@ use App\Models\Payment;
 use App\Models\Service;
 use App\Models\User;
 use App\Services\DashboardService;
+use App\Services\DashboardStrategies\DashboardStrategyFactory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
     protected $dashboardService;
+    protected $strategyFactory;
 
-    public function __construct(DashboardService $dashboardService)
+    public function __construct(DashboardService $dashboardService, DashboardStrategyFactory $strategyFactory)
     {
         $this->dashboardService = $dashboardService;
+        $this->strategyFactory = $strategyFactory;
     }
     /**
      * Show patient dashboard
@@ -24,19 +27,9 @@ class DashboardController extends Controller
     public function patient()
     {
         $user = Auth::user();
-        $result = $this->dashboardService->getPatientDashboard($user);
-
-        if ($result['success']) {
-            $data = $result['data'];
-            return view('dashboard.patient', $data);
-        } else {
-            return view('dashboard.patient', [
-                'upcomingAppointments' => collect(),
-                'recentAppointments' => collect(),
-                'unreadNotifications' => 0,
-                'appointmentStats' => []
-            ]);
-        }
+        $dashboardView = $this->strategyFactory->getDashboardView($user);
+        
+        return view($dashboardView['view'], $dashboardView['data']);
     }
 
     /**
@@ -45,19 +38,9 @@ class DashboardController extends Controller
     public function doctor()
     {
         $user = Auth::user();
-        $result = $this->dashboardService->getDoctorDashboard($user);
-
-        if ($result['success']) {
-            $data = $result['data'];
-            return view('dashboard.doctor', $data);
-        } else {
-            return view('dashboard.doctor', [
-                'todayAppointments' => collect(),
-                'upcomingAppointments' => collect(),
-                'unreadNotifications' => 0,
-                'doctorStats' => []
-            ]);
-        }
+        $dashboardView = $this->strategyFactory->getDashboardView($user);
+        
+        return view($dashboardView['view'], $dashboardView['data']);
     }
 
     /**
@@ -66,24 +49,20 @@ class DashboardController extends Controller
     public function admin()
     {
         $user = Auth::user();
-        $result = $this->dashboardService->getAdminDashboard($user);
+        $dashboardView = $this->strategyFactory->getDashboardView($user);
+        
+        return view($dashboardView['view'], $dashboardView['data']);
+    }
 
-        if ($result['success']) {
-            $data = $result['data'];
-            return view('dashboard.admin', $data);
-        } else {
-            return view('dashboard.admin', [
-                'totalPatients' => 0,
-                'totalDoctors' => 0,
-                'totalAppointments' => 0,
-                'totalRevenue' => 0,
-                'todayAppointments' => collect(),
-                'recentAppointments' => collect(),
-                'pendingPayments' => collect(),
-                'unreadNotifications' => 0,
-                'revenueStats' => [],
-                'appointmentStats' => []
-            ]);
-        }
+    /**
+     * Generic dashboard method that automatically determines the user's role
+     * and shows the appropriate dashboard
+     */
+    public function index()
+    {
+        $user = Auth::user();
+        $dashboardView = $this->strategyFactory->getDashboardView($user);
+        
+        return view($dashboardView['view'], $dashboardView['data']);
     }
 }
