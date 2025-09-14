@@ -225,7 +225,7 @@ class PaymentController extends Controller
     /**
      * Show revenue report (admin only)
      */
-    public function revenueReport()
+    public function revenueReport(Request $request)
     {
         $user = Auth::user();
 
@@ -233,25 +233,100 @@ class PaymentController extends Controller
             abort(403, 'Unauthorized access to revenue report.');
         }
 
+        // Get filter parameters
+        $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
+        $endDate = $request->get('end_date', now()->format('Y-m-d'));
+        $monthFilter = $request->get('month_filter');
+        $serviceDate = $request->get('service_date', now()->format('Y-m-d'));
+
+        // Build base query with date filters
+        $baseQuery = Payment::where('payments.status', 'paid')
+            ->whereBetween('payments.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+
+        // Apply month filter if specified
+        if ($monthFilter) {
+            $baseQuery->whereMonth('payments.created_at', $monthFilter);
+        }
+
         // Get payments grouped by day
-        $dailyRevenue = Payment::where('status', 'paid')
+        $dailyRevenue = (clone $baseQuery)
             ->selectRaw('DATE(created_at) as date, SUM(amount) as total')
             ->groupBy('date')
             ->orderBy('date', 'desc')
             ->get();
 
+        // Get daily revenue by service
+        $dailyServiceRevenue = (clone $baseQuery)
+            ->join('appointments', 'payments.appointment_id', '=', 'appointments.id')
+            ->join('services', 'appointments.service_id', '=', 'services.id')
+            ->selectRaw('DATE(payments.created_at) as date, services.name as service_name, SUM(payments.amount) as total')
+            ->groupBy('date', 'services.id', 'services.name')
+            ->orderBy('date', 'desc')
+            ->orderBy('total', 'desc')
+            ->get();
+
         // Get payments grouped by month
-        $monthlyRevenue = Payment::where('status', 'paid')
+        $monthlyRevenue = (clone $baseQuery)
             ->selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, SUM(amount) as total')
             ->groupBy('year', 'month')
             ->orderBy('year', 'desc')
             ->orderBy('month', 'desc')
             ->get();
 
-        // Calculate total revenue
-        $totalRevenue = Payment::where('status', 'paid')->sum('amount');
+        // Get revenue by service
+        $serviceRevenue = (clone $baseQuery)
+            ->join('appointments', 'payments.appointment_id', '=', 'appointments.id')
+            ->join('services', 'appointments.service_id', '=', 'services.id')
+            ->selectRaw('services.name as service_name, services.id as service_id, SUM(payments.amount) as total, COUNT(payments.id) as count')
+            ->groupBy('services.id', 'services.name')
+            ->orderBy('total', 'desc')
+            ->get();
 
-        return view('payments.revenue-report', compact('dailyRevenue', 'monthlyRevenue', 'totalRevenue'));
+        // Get monthly revenue by service
+        $monthlyServiceRevenueQuery = Payment::where('payments.status', 'paid')
+            ->join('appointments', 'payments.appointment_id', '=', 'appointments.id')
+            ->join('services', 'appointments.service_id', '=', 'services.id');
+        
+        // Apply month filter if specified
+        if ($monthFilter) {
+            $monthlyServiceRevenueQuery->whereMonth('payments.created_at', $monthFilter);
+        }
+        
+        $monthlyServiceRevenue = $monthlyServiceRevenueQuery
+            ->selectRaw('services.name as service_name, YEAR(payments.created_at) as year, MONTH(payments.created_at) as month, SUM(payments.amount) as total')
+            ->groupBy('services.id', 'services.name', 'year', 'month')
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->orderBy('total', 'desc')
+            ->get();
+
+        // Get service revenue for specific date (for pie chart)
+        $serviceRevenueByDate = Payment::where('payments.status', 'paid')
+            ->whereDate('payments.created_at', $serviceDate)
+            ->join('appointments', 'payments.appointment_id', '=', 'appointments.id')
+            ->join('services', 'appointments.service_id', '=', 'services.id')
+            ->selectRaw('services.name as service_name, services.id as service_id, SUM(payments.amount) as total')
+            ->groupBy('services.id', 'services.name')
+            ->orderBy('total', 'desc')
+            ->get();
+
+
+        // Calculate total revenue
+        $totalRevenue = (clone $baseQuery)->sum('amount');
+
+        return view('payments.revenue-report', compact(
+            'dailyRevenue', 
+            'dailyServiceRevenue',
+            'monthlyRevenue', 
+            'totalRevenue',
+            'serviceRevenue',
+            'monthlyServiceRevenue',
+            'serviceRevenueByDate',
+            'startDate',
+            'endDate',
+            'monthFilter',
+            'serviceDate'
+        ));
     }
 
     /**
