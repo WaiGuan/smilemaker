@@ -148,6 +148,7 @@
                                 <option value="confirmed" {{ $appointment->status === 'confirmed' ? 'selected' : '' }}>Confirmed</option>
                                 <option value="completed" {{ $appointment->status === 'completed' ? 'selected' : '' }}>Completed</option>
                                 <option value="rescheduled" {{ $appointment->status === 'rescheduled' ? 'selected' : '' }}>Rescheduled</option>
+                                <option value="cancelled" {{ $appointment->status === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
                             </select>
                         </div>
                         <div class="mb-3">

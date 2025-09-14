@@ -48,7 +48,8 @@
             $upcomingAppointments = $appointments->filter(function($appointment) { 
                 return $appointment->appointment_date >= now() && 
                        $appointment->status !== 'completed' && 
-                       $appointment->status !== 'cancelled'; 
+                       $appointment->status !== 'cancelled' && 
+                       $appointment->status !== 'rescheduled'; 
             })->sortBy('appointment_date'); 
         @endphp
         @if($upcomingAppointments->count() > 0)
