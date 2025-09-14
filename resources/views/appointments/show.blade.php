@@ -11,7 +11,8 @@
                 <span class="badge bg-{{
                     $appointment->status === 'completed' ? 'success' :
                     ($appointment->status === 'cancelled' ? 'danger' :
-                    ($appointment->status === 'confirmed' ? 'primary' : 'warning'))
+                    ($appointment->status === 'confirmed' ? 'info' : 
+                    ($appointment->status === 'pending' ? 'warning' : 'secondary')))
                 }} fs-6">
                     {{ ucfirst($appointment->status) }}
                 </span>

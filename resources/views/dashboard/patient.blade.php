@@ -79,7 +79,12 @@
                                         @endif
                                     </div>
                                     <div>
-                                        <span class="badge bg-{{ $appointment->status === 'pending' ? 'warning' : 'success' }}">
+                                        <span class="badge bg-{{
+                                            $appointment->status === 'completed' ? 'success' :
+                                            ($appointment->status === 'cancelled' ? 'danger' :
+                                            ($appointment->status === 'confirmed' ? 'info' : 
+                                            ($appointment->status === 'pending' ? 'warning' : 'secondary')))
+                                        }}">
                                             {{ ucfirst($appointment->status) }}
                                         </span>
                                     </div>
@@ -121,7 +126,9 @@
                                     <div>
                                         <span class="badge bg-{{
                                             $appointment->status === 'completed' ? 'success' :
-                                            ($appointment->status === 'cancelled' ? 'danger' : 'warning')
+                                            ($appointment->status === 'cancelled' ? 'danger' :
+                                            ($appointment->status === 'confirmed' ? 'info' : 
+                                            ($appointment->status === 'pending' ? 'warning' : 'secondary')))
                                         }}">
                                             {{ ucfirst($appointment->status) }}
                                         </span>
