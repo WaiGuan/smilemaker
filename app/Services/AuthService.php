@@ -15,8 +15,21 @@ class AuthService
     public function login(array $credentials, bool $remember = false): array
     {
         try {
+            // Log the login attempt for debugging
+            Log::info('Login attempt', [
+                'email' => $credentials['email'],
+                'remember' => $remember
+            ]);
+
             if (Auth::attempt($credentials, $remember)) {
                 $user = Auth::user();
+                
+                // Log successful login
+                Log::info('Login successful', [
+                    'user_id' => $user->id,
+                    'user_role' => $user->role,
+                    'user_email' => $user->email
+                ]);
                 
                 return [
                     'success' => true,
@@ -25,13 +38,22 @@ class AuthService
                 ];
             }
 
+            // Log failed login
+            Log::warning('Login failed', [
+                'email' => $credentials['email'],
+                'reason' => 'Invalid credentials'
+            ]);
+
             return [
                 'success' => false,
                 'error' => 'The provided credentials do not match our records.'
             ];
 
         } catch (\Exception $e) {
-            Log::error('Authentication Error: ' . $e->getMessage());
+            Log::error('Authentication Error: ' . $e->getMessage(), [
+                'email' => $credentials['email'] ?? 'unknown',
+                'exception' => $e->getTraceAsString()
+            ]);
             return [
                 'success' => false,
                 'error' => 'Authentication failed. Please try again.'
@@ -78,7 +100,20 @@ class AuthService
     public function logout(): array
     {
         try {
+            $user = Auth::user();
+            
+            // Log logout attempt
+            if ($user) {
+                Log::info('Logout attempt', [
+                    'user_id' => $user->id,
+                    'user_role' => $user->role,
+                    'user_email' => $user->email
+                ]);
+            }
+            
             Auth::logout();
+            
+            Log::info('Logout successful');
             
             return [
                 'success' => true,
@@ -86,7 +121,9 @@ class AuthService
             ];
 
         } catch (\Exception $e) {
-            Log::error('Logout Error: ' . $e->getMessage());
+            Log::error('Logout Error: ' . $e->getMessage(), [
+                'exception' => $e->getTraceAsString()
+            ]);
             return [
                 'success' => false,
                 'error' => 'Logout failed. Please try again.'

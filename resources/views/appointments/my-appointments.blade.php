@@ -100,6 +100,8 @@
         <h4 class="text-muted">No appointments found</h4>
         @if(auth()->user()->isAdmin())
             <p class="text-muted">No appointments have been booked yet.</p>
+        @elseif(auth()->user()->isDoctor())
+            <p class="text-muted">You don't have any appointments scheduled yet.</p>
         @else
             <p class="text-muted">You haven't booked any appointments yet.</p>
             <a href="{{ route('appointments.index') }}" class="btn btn-primary">
