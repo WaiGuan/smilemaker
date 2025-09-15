@@ -1,5 +1,7 @@
 <?php
 
+/// Author: Tan Huei Qing
+
 namespace App\Http\Controllers;
 
 use App\Models\Notification;

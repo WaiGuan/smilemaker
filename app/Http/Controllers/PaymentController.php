@@ -1,5 +1,7 @@
 <?php
 
+/// Author: Tan Huei Qing
+
 namespace App\Http\Controllers;
 
 use App\Models\Payment;
@@ -22,9 +24,6 @@ class PaymentController extends Controller
         $this->notificationService = $notificationService;
     }
 
-    /**
-     * Show payment form for an appointment
-     */
     public function show(Appointment $appointment)
     {
         // Check if user can view this payment
@@ -55,9 +54,6 @@ class PaymentController extends Controller
         return view('payments.show', compact('payment', 'appointment', 'isStripeConfigured', 'paymentIntent'));
     }
 
-    /**
-     * Process payment (demo mode or Stripe confirmation)
-     */
     public function process(Request $request, Payment $payment)
     {
         $user = Auth::user();
@@ -113,9 +109,6 @@ class PaymentController extends Controller
             ->with('error', 'Payment processing failed.');
     }
 
-    /**
-     * Process manual Stripe payment (CSP-friendly)
-     */
     private function processManualStripePayment(Request $request, Payment $payment)
     {
         try {
@@ -190,9 +183,6 @@ class PaymentController extends Controller
         }
     }
 
-    /**
-     * Send payment notification
-     */
     private function sendPaymentNotification(Payment $payment, string $status): void
     {
         $appointment = $payment->appointment;
@@ -206,9 +196,6 @@ class PaymentController extends Controller
         );
     }
 
-    /**
-     * Handle Stripe payment confirmation
-     */
     public function confirmPayment(Request $request)
     {
         $paymentIntentId = $request->input('payment_intent_id');

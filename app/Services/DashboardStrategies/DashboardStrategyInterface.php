@@ -1,5 +1,7 @@
 <?php
 
+/// Author: Foo Tek Sian
+
 namespace App\Services\DashboardStrategies;
 
 use App\Models\User;

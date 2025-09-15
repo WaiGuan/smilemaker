@@ -1,3 +1,4 @@
+{{-- Author: Tan Huei Qing --}}
 @extends('layouts.app')
 
 @section('title', 'All Payments - Dental Clinic')
@@ -61,7 +62,6 @@
         </div>
     </div>
 
-    <!-- Payment Statistics -->
     <div class="row mt-4">
         <div class="col-md-3">
             <div class="card text-center">

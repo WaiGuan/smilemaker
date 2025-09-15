@@ -1,3 +1,4 @@
+{{-- Author: Yuen Yun Jia --}}
 @extends('layouts.app')
 
 @section('title', 'Welcome to Smilemaker Dental Clinic')

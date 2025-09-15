@@ -1,5 +1,7 @@
 <?php
 
+/// Author: Tan Huei Qing, Yuen Yun Jia, Foo Tek Sian, Pooi Wai Guan
+
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;

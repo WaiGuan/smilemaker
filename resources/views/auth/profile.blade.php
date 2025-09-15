@@ -1,3 +1,4 @@
+{{-- Author: Pooi Wai Guan --}}
 @extends('layouts.app')
 
 @section('title', 'Profile - Dental Clinic')

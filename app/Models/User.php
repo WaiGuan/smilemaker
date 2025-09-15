@@ -1,5 +1,7 @@
 <?php
 
+// Author: Pooi Wai Guan
+
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;

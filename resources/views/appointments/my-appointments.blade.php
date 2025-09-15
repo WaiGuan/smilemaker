@@ -1,3 +1,4 @@
+{{-- Author: Yuen Yun Jia & Foo Tek Sian --}}
 @extends('layouts.app')
 
 @section('title', auth()->user()->isAdmin() ? 'Appointments - Dental Clinic' : 'My Appointments - Dental Clinic')

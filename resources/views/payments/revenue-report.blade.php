@@ -1,3 +1,4 @@
+{{-- Author: Tan Huei Qing --}}
 @extends('layouts.app')
 
 @section('title', 'Revenue Report - Dental Clinic')
@@ -12,7 +13,6 @@
     </div>
 </div>
 
-<!-- Total Revenue Card -->
 <div class="row mb-4">
     <div class="col-md-12">
         <div class="card text-center">
@@ -26,7 +26,6 @@
 </div>
 
 <div class="row">
-    <!-- Revenue by Service -->
     <div class="col-md-6">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -36,7 +35,6 @@
                     <input type="date" class="form-control form-control-sm" id="service_date_filter" 
                            name="service_date" value="{{ request('service_date', now()->format('Y-m-d')) }}" 
                            style="width: auto;" onchange="this.form.submit()">
-                    <!-- Preserve other existing parameters -->
                     @if(request('start_date'))
                         <input type="hidden" name="start_date" value="{{ request('start_date') }}">
                     @endif
@@ -78,7 +76,6 @@
         </div>
     </div>
 
-    <!-- Monthly Revenue by Service -->
     <div class="col-md-6">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -139,7 +136,6 @@
     </div>
 </div>
 
-<!-- Revenue Summary -->
 <div class="row mt-4">
     <div class="col-md-12">
         <div class="card">
@@ -176,7 +172,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Date filter using form submission approach');
     
-    // Simple logging for debugging
     const serviceDateFilter = document.getElementById('service_date_filter');
     if (serviceDateFilter) {
         console.log('Date filter element found, current value:', serviceDateFilter.value);

@@ -1,5 +1,7 @@
 <?php
 
+/// Author: Pooi Wai Guan
+
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;

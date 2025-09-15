@@ -1,5 +1,7 @@
 <?php
 
+/// Author: Pooi Wai Guan
+
 namespace App\Listeners;
 
 use App\Events\UserRegistered;

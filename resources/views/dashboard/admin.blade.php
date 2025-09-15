@@ -1,3 +1,4 @@
+{{-- Author: Foo Tek Sian --}}
 @extends('layouts.app')
 
 @section('title', 'Admin Dashboard - Dental Clinic')

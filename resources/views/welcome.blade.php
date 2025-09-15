@@ -1,3 +1,4 @@
+{{-- Author: Tan Huei Qing, Yuen Yun Jia, Foo Tek Sian, Pooi Wai Guan --}}
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>

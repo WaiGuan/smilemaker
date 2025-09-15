@@ -1,3 +1,4 @@
+{{-- Author: Tan Huei Qing --}}
 @extends('layouts.app')
 
 @section('title', 'Notifications - Dental Clinic')
