@@ -102,20 +102,17 @@
                                 <div class="col-md-6 mb-3">
                                     <label for="card_number" class="form-label">Card Number</label>
                                     <input type="text" class="form-control" id="card_number" name="card_number"
-                                           placeholder="4242 4242 4242 4242"
-                                           value="{{ $payment->status === 'failed' ? '' : '4242 4242 4242 4242' }}" required>
+                                           placeholder="4242 4242 4242 4242" required>
                                 </div>
                                 <div class="col-md-3 mb-3">
                                     <label for="expiry" class="form-label">Expiry</label>
                                     <input type="text" class="form-control" id="expiry" name="expiry"
-                                           placeholder="12/25"
-                                           value="{{ $payment->status === 'failed' ? '' : '12/25' }}" required>
+                                           placeholder="12/25" required>
                                 </div>
                                 <div class="col-md-3 mb-3">
                                     <label for="cvc" class="form-label">CVC</label>
                                     <input type="text" class="form-control" id="cvc" name="cvc"
-                                           placeholder="123"
-                                           value="{{ $payment->status === 'failed' ? '' : '123' }}" required>
+                                           placeholder="123" required>
                                 </div>
                             </div>
 
@@ -123,7 +120,7 @@
                                 <div class="col-md-6 mb-3">
                                     <label for="cardholder_name" class="form-label">Cardholder Name</label>
                                     <input type="text" class="form-control" id="cardholder_name" name="cardholder_name"
-                                           placeholder="John Doe" value="{{ auth()->user()->name }}" required>
+                                           placeholder="John Doe" required>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label for="email" class="form-label">Email</label>
