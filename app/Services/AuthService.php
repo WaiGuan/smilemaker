@@ -398,4 +398,33 @@ class AuthService
     {
         return $user->isAdmin() || $appointment->patient_id === $user->id;
     }
+
+    /**
+     * Get user by email
+     */
+    public function getUserByEmail(string $email): array
+    {
+        try {
+            $user = User::where('email', $email)->first();
+
+            if (!$user) {
+                return [
+                    'success' => false,
+                    'error' => 'User not found.'
+                ];
+            }
+
+            return [
+                'success' => true,
+                'user' => $user
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Get User By Email Error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Failed to retrieve user: ' . $e->getMessage()
+            ];
+        }
+    }
 }

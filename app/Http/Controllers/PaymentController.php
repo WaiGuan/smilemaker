@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Payment;
 use App\Models\Appointment;
 use App\Services\PaymentService;
+use App\Services\NotificationService;
+use App\Http\Resources\PaymentResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -12,10 +14,12 @@ use Illuminate\Support\Facades\Validator;
 class PaymentController extends Controller
 {
     protected $paymentService;
+    protected $notificationService;
 
-    public function __construct(PaymentService $paymentService)
+    public function __construct(PaymentService $paymentService, NotificationService $notificationService)
     {
         $this->paymentService = $paymentService;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -194,16 +198,12 @@ class PaymentController extends Controller
         $appointment = $payment->appointment;
         $patient = $appointment->patient;
 
-        if ($status === 'success') {
-            $message = "Your payment of $" . number_format($payment->amount, 2) . " for {$appointment->service->name} has been processed successfully.";
-        } else {
-            $message = "Your payment of $" . number_format($payment->amount, 2) . " for {$appointment->service->name} has failed. Please try again.";
-        }
-
-        \App\Models\Notification::create([
-            'user_id' => $patient->id,
-            'message' => $message,
-        ]);
+        $this->notificationService->createPaymentNotification(
+            $patient->id,
+            $payment->amount,
+            $appointment->service->name,
+            $status
+        );
     }
 
     /**
@@ -233,99 +233,25 @@ class PaymentController extends Controller
             abort(403, 'Unauthorized access to revenue report.');
         }
 
-        // Get filter parameters
-        $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
-        $endDate = $request->get('end_date', now()->format('Y-m-d'));
-        $monthFilter = $request->get('month_filter');
-        $serviceDate = $request->get('service_date', now()->format('Y-m-d'));
+        $filters = [
+            'start_date' => $request->get('start_date', now()->startOfMonth()->format('Y-m-d')),
+            'end_date' => $request->get('end_date', now()->format('Y-m-d')),
+            'month_filter' => $request->get('month_filter'),
+            'service_date' => $request->get('service_date', now()->format('Y-m-d')),
+        ];
 
-        // Build base query with date filters
-        $baseQuery = Payment::where('payments.status', 'paid')
-            ->whereBetween('payments.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        $result = $this->paymentService->getRevenueReport($filters);
 
-        // Apply month filter if specified
-        if ($monthFilter) {
-            $baseQuery->whereMonth('payments.created_at', $monthFilter);
+        if (!$result['success']) {
+            return redirect()->back()->with('error', $result['error']);
         }
 
-        // Get payments grouped by day
-        $dailyRevenue = (clone $baseQuery)
-            ->selectRaw('DATE(created_at) as date, SUM(amount) as total')
-            ->groupBy('date')
-            ->orderBy('date', 'desc')
-            ->get();
-
-        // Get daily revenue by service
-        $dailyServiceRevenue = (clone $baseQuery)
-            ->join('appointments', 'payments.appointment_id', '=', 'appointments.id')
-            ->join('services', 'appointments.service_id', '=', 'services.id')
-            ->selectRaw('DATE(payments.created_at) as date, services.name as service_name, SUM(payments.amount) as total')
-            ->groupBy('date', 'services.id', 'services.name')
-            ->orderBy('date', 'desc')
-            ->orderBy('total', 'desc')
-            ->get();
-
-        // Get payments grouped by month
-        $monthlyRevenue = (clone $baseQuery)
-            ->selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, SUM(amount) as total')
-            ->groupBy('year', 'month')
-            ->orderBy('year', 'desc')
-            ->orderBy('month', 'desc')
-            ->get();
-
-        // Get revenue by service
-        $serviceRevenue = (clone $baseQuery)
-            ->join('appointments', 'payments.appointment_id', '=', 'appointments.id')
-            ->join('services', 'appointments.service_id', '=', 'services.id')
-            ->selectRaw('services.name as service_name, services.id as service_id, SUM(payments.amount) as total, COUNT(payments.id) as count')
-            ->groupBy('services.id', 'services.name')
-            ->orderBy('total', 'desc')
-            ->get();
-
-        // Get monthly revenue by service
-        $monthlyServiceRevenueQuery = Payment::where('payments.status', 'paid')
-            ->join('appointments', 'payments.appointment_id', '=', 'appointments.id')
-            ->join('services', 'appointments.service_id', '=', 'services.id');
-        
-        // Apply month filter if specified
-        if ($monthFilter) {
-            $monthlyServiceRevenueQuery->whereMonth('payments.created_at', $monthFilter);
-        }
-        
-        $monthlyServiceRevenue = $monthlyServiceRevenueQuery
-            ->selectRaw('services.name as service_name, YEAR(payments.created_at) as year, MONTH(payments.created_at) as month, SUM(payments.amount) as total')
-            ->groupBy('services.id', 'services.name', 'year', 'month')
-            ->orderBy('year', 'desc')
-            ->orderBy('month', 'desc')
-            ->orderBy('total', 'desc')
-            ->get();
-
-        // Get service revenue for specific date (for pie chart)
-        $serviceRevenueByDate = Payment::where('payments.status', 'paid')
-            ->whereDate('payments.created_at', $serviceDate)
-            ->join('appointments', 'payments.appointment_id', '=', 'appointments.id')
-            ->join('services', 'appointments.service_id', '=', 'services.id')
-            ->selectRaw('services.name as service_name, services.id as service_id, SUM(payments.amount) as total')
-            ->groupBy('services.id', 'services.name')
-            ->orderBy('total', 'desc')
-            ->get();
-
-
-        // Calculate total revenue
-        $totalRevenue = (clone $baseQuery)->sum('amount');
+        $data = $result['data'];
+        $filters = $data['filters'];
 
         return view('payments.revenue-report', compact(
-            'dailyRevenue', 
-            'dailyServiceRevenue',
-            'monthlyRevenue', 
-            'totalRevenue',
-            'serviceRevenue',
-            'monthlyServiceRevenue',
-            'serviceRevenueByDate',
-            'startDate',
-            'endDate',
-            'monthFilter',
-            'serviceDate'
+            'data',
+            'filters'
         ));
     }
 
@@ -340,10 +266,177 @@ class PaymentController extends Controller
             abort(403, 'Unauthorized access to payments.');
         }
 
-        $payments = Payment::with(['appointment.patient', 'appointment.service'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $result = $this->paymentService->getAllPayments();
+
+        if ($result['success']) {
+            $payments = $result['payments'];
+        } else {
+            $payments = collect();
+        }
 
         return view('payments.index', compact('payments'));
+    }
+
+    // ==================== API METHODS ====================
+
+    /**
+     * API: Display a listing of payments
+     */
+    public function apiIndex(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access to payments.'
+            ], 403);
+        }
+
+        $perPage = $request->get('per_page', 15);
+        $result = $this->paymentService->getAllPayments($perPage);
+        
+        if (!$result['success']) {
+            return response()->json([
+                'success' => false,
+                'message' => $result['error']
+            ], 400);
+        }
+        
+        $payments = $result['payments'];
+
+        return response()->json([
+            'success' => true,
+            'data' => PaymentResource::collection($payments),
+            'meta' => [
+                'current_page' => $payments->currentPage(),
+                'last_page' => $payments->lastPage(),
+                'per_page' => $payments->perPage(),
+                'total' => $payments->total(),
+            ]
+        ], 200);
+    }
+
+    /**
+     * API: Display the specified payment
+     */
+    public function apiShow(Appointment $appointment)
+    {
+        $user = Auth::user();
+        
+        if (!$user->isAdmin() && $appointment->patient_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access to payment.'
+            ], 403);
+        }
+
+        $payment = $appointment->payment;
+
+        if (!$payment) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No payment found for this appointment.'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => new PaymentResource($payment->load('appointment'))
+        ], 200);
+    }
+
+    /**
+     * API: Process payment
+     */
+    public function apiProcess(Request $request, Payment $payment)
+    {
+        $user = Auth::user();
+
+        if (!$user->isAdmin() && $payment->appointment->patient_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized to process this payment.'
+            ], 403);
+        }
+
+        if ($this->paymentService->isStripeConfigured()) {
+            if ($request->input('stripe_mode')) {
+                $result = $this->processManualStripePayment($request, $payment);
+
+                return response()->json($result, $result['success'] ? 200 : 400);
+            }
+
+            $paymentIntentId = $request->input('payment_intent_id');
+
+            if ($paymentIntentId) {
+                $result = $this->paymentService->confirmPayment($paymentIntentId);
+                return response()->json($result, $result['success'] ? 200 : 400);
+            }
+        } else {
+            $result = $this->paymentService->simulatePayment($payment->appointment);
+            return response()->json($result, $result['success'] ? 200 : 400);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Payment processing failed.'
+        ], 400);
+    }
+
+    /**
+     * API: Confirm payment
+     */
+    public function apiConfirmPayment(Request $request)
+    {
+        $paymentIntentId = $request->input('payment_intent_id');
+
+        if (!$paymentIntentId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Payment intent ID required'
+            ], 400);
+        }
+
+        $result = $this->paymentService->confirmPayment($paymentIntentId);
+        return response()->json($result, $result['success'] ? 200 : 400);
+    }
+
+    /**
+     * API: Get revenue report
+     */
+    public function apiRevenueReport(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access to revenue report.'
+            ], 403);
+        }
+
+        $filters = [
+            'start_date' => $request->get('start_date', now()->startOfMonth()->format('Y-m-d')),
+            'end_date' => $request->get('end_date', now()->format('Y-m-d')),
+            'month_filter' => $request->get('month_filter'),
+            'service_date' => $request->get('service_date', now()->format('Y-m-d')),
+        ];
+
+        $result = $this->paymentService->getRevenueReport($filters);
+
+        if (!$result['success']) {
+            return response()->json([
+                'success' => false,
+                'message' => $result['error']
+            ], 400);
+        }
+
+        $data = $result['data'];
+
+        return response()->json([
+            'success' => true,
+            'data' => $data
+        ], 200);
     }
 }

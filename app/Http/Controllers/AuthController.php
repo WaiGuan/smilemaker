@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Services\AuthService;
+use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -147,5 +148,169 @@ class AuthController extends Controller
         } else {
             return redirect()->back()->with('error', $result['error']);
         }
+    }
+
+    // ==================== API METHODS ====================
+
+    /**
+     * API: Handle user login
+     */
+    public function apiLogin(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'password' => 'required|min:6',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $credentials = $request->only('email', 'password');
+        $result = $this->authService->login($credentials, $request->filled('remember'));
+
+        if ($result['success']) {
+            $user = Auth::user();
+            $token = $user->createToken('auth-token')->plainTextToken;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Login successful',
+                'data' => [
+                    'user' => new UserResource($user),
+                    'token' => $token,
+                    'redirect_url' => $result['redirect_url']
+                ]
+            ], 200);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => $result['error']
+        ], 401);
+    }
+
+    /**
+     * API: Handle user registration
+     */
+    public function apiRegister(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:6|confirmed',
+            'phone' => 'nullable|string|max:20',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $result = $this->authService->register($request->all());
+
+        if ($result['success']) {
+            $userResult = $this->authService->getUserByEmail($request->email);
+            if (!$userResult['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $userResult['error']
+                ], 400);
+            }
+            $user = $userResult['user'];
+            $token = $user->createToken('auth-token')->plainTextToken;
+
+            return response()->json([
+                'success' => true,
+                'message' => $result['message'],
+                'data' => [
+                    'user' => new UserResource($user),
+                    'token' => $token
+                ]
+            ], 201);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => $result['error']
+        ], 400);
+    }
+
+    /**
+     * API: Handle user logout
+     */
+    public function apiLogout(Request $request)
+    {
+        $user = Auth::user();
+        
+        if ($user) {
+            $user->tokens()->delete();
+        }
+
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'You have been logged out successfully.'
+        ], 200);
+    }
+
+    /**
+     * API: Get user profile
+     */
+    public function apiProfile()
+    {
+        $user = Auth::user();
+        
+        return response()->json([
+            'success' => true,
+            'data' => new UserResource($user)
+        ], 200);
+    }
+
+    /**
+     * API: Update user profile
+     */
+    public function apiUpdateProfile(Request $request)
+    {
+        $user = Auth::user();
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
+            'phone' => 'nullable|string|max:20',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $result = $this->authService->updateProfile($user, $request->all());
+
+        if ($result['success']) {
+            return response()->json([
+                'success' => true,
+                'message' => $result['message'],
+                'data' => new UserResource($user->fresh())
+            ], 200);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => $result['error']
+        ], 400);
     }
 }

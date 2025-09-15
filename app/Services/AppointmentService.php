@@ -71,6 +71,37 @@ class AppointmentService
     }
 
     /**
+     * Check for conflicting appointments
+     */
+    public function checkConflictingAppointment(int $doctorId, string $appointmentDate, int $excludeAppointmentId = null): array
+    {
+        try {
+            $query = Appointment::where('doctor_id', $doctorId)
+                ->where('appointment_date', $appointmentDate)
+                ->where('status', '!=', 'cancelled');
+
+            if ($excludeAppointmentId) {
+                $query->where('id', '!=', $excludeAppointmentId);
+            }
+
+            $conflictingAppointment = $query->first();
+
+            return [
+                'success' => true,
+                'has_conflict' => $conflictingAppointment !== null,
+                'conflicting_appointment' => $conflictingAppointment
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Check Conflicting Appointment Error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Failed to check for conflicting appointments: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * Check if a specific doctor is available at the given time
      */
     public function checkDoctorAvailability(int $doctorId, string $appointmentDate): array

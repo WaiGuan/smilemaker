@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Payment;
 use App\Models\Appointment;
+use App\Services\NotificationService;
 use Stripe\Stripe;
 use Stripe\PaymentIntent;
 use Stripe\Exception\ApiErrorException;
@@ -11,10 +12,13 @@ use Illuminate\Support\Facades\Log;
 
 class PaymentService
 {
-    public function __construct()
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
     {
         // Initialize Stripe with secret key
         Stripe::setApiKey(config('services.stripe.secret'));
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -390,15 +394,148 @@ class PaymentService
         $appointment = $payment->appointment;
         $patient = $appointment->patient;
 
-        if ($status === 'success') {
-            $message = "Your payment of RM" . number_format($payment->amount, 2) . " for {$appointment->service->name} has been processed successfully.";
-        } else {
-            $message = "Your payment of RM" . number_format($payment->amount, 2) . " for {$appointment->service->name} has failed. Please try again.";
-        }
+        $this->notificationService->createPaymentNotification(
+            $patient->id,
+            $payment->amount,
+            $appointment->service->name,
+            $status
+        );
+    }
 
-        \App\Models\Notification::create([
-            'user_id' => $patient->id,
-            'message' => $message,
-        ]);
+    /**
+     * Get revenue report data
+     */
+    public function getRevenueReport(array $filters = []): array
+    {
+        try {
+            $startDate = $filters['start_date'] ?? now()->startOfMonth()->format('Y-m-d');
+            $endDate = $filters['end_date'] ?? now()->format('Y-m-d');
+            $monthFilter = $filters['month_filter'] ?? null;
+            $serviceDate = $filters['service_date'] ?? now()->format('Y-m-d');
+
+            // Build base query with date filters
+            $baseQuery = Payment::where('payments.status', 'paid')
+                ->whereBetween('payments.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+
+            // Apply month filter if specified
+            if ($monthFilter) {
+                $baseQuery->whereMonth('payments.created_at', $monthFilter);
+            }
+
+            // Get payments grouped by day
+            $dailyRevenue = (clone $baseQuery)
+                ->selectRaw('DATE(created_at) as date, SUM(amount) as total')
+                ->groupBy('date')
+                ->orderBy('date', 'desc')
+                ->get();
+
+            // Get daily revenue by service
+            $dailyServiceRevenue = (clone $baseQuery)
+                ->join('appointments', 'payments.appointment_id', '=', 'appointments.id')
+                ->join('services', 'appointments.service_id', '=', 'services.id')
+                ->selectRaw('DATE(payments.created_at) as date, services.name as service_name, SUM(payments.amount) as total')
+                ->groupBy('date', 'services.id', 'services.name')
+                ->orderBy('date', 'desc')
+                ->orderBy('total', 'desc')
+                ->get();
+
+            // Get payments grouped by month
+            $monthlyRevenue = (clone $baseQuery)
+                ->selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, SUM(amount) as total')
+                ->groupBy('year', 'month')
+                ->orderBy('year', 'desc')
+                ->orderBy('month', 'desc')
+                ->get();
+
+            // Get revenue by service
+            $serviceRevenue = (clone $baseQuery)
+                ->join('appointments', 'payments.appointment_id', '=', 'appointments.id')
+                ->join('services', 'appointments.service_id', '=', 'services.id')
+                ->selectRaw('services.name as service_name, services.id as service_id, SUM(payments.amount) as total, COUNT(payments.id) as count')
+                ->groupBy('services.id', 'services.name')
+                ->orderBy('total', 'desc')
+                ->get();
+
+            // Get monthly revenue by service
+            $monthlyServiceRevenueQuery = Payment::where('payments.status', 'paid')
+                ->join('appointments', 'payments.appointment_id', '=', 'appointments.id')
+                ->join('services', 'appointments.service_id', '=', 'services.id');
+            
+            // Apply month filter if specified
+            if ($monthFilter) {
+                $monthlyServiceRevenueQuery->whereMonth('payments.created_at', $monthFilter);
+            }
+            
+            $monthlyServiceRevenue = $monthlyServiceRevenueQuery
+                ->selectRaw('services.name as service_name, YEAR(payments.created_at) as year, MONTH(payments.created_at) as month, SUM(payments.amount) as total')
+                ->groupBy('services.id', 'services.name', 'year', 'month')
+                ->orderBy('year', 'desc')
+                ->orderBy('month', 'desc')
+                ->orderBy('total', 'desc')
+                ->get();
+
+            // Get service revenue for specific date (for pie chart)
+            $serviceRevenueByDate = Payment::where('payments.status', 'paid')
+                ->whereDate('payments.created_at', $serviceDate)
+                ->join('appointments', 'payments.appointment_id', '=', 'appointments.id')
+                ->join('services', 'appointments.service_id', '=', 'services.id')
+                ->selectRaw('services.name as service_name, services.id as service_id, SUM(payments.amount) as total')
+                ->groupBy('services.id', 'services.name')
+                ->orderBy('total', 'desc')
+                ->get();
+
+            // Calculate total revenue
+            $totalRevenue = (clone $baseQuery)->sum('amount');
+
+            return [
+                'success' => true,
+                'data' => [
+                    'daily_revenue' => $dailyRevenue,
+                    'daily_service_revenue' => $dailyServiceRevenue,
+                    'monthly_revenue' => $monthlyRevenue,
+                    'service_revenue' => $serviceRevenue,
+                    'monthly_service_revenue' => $monthlyServiceRevenue,
+                    'service_revenue_by_date' => $serviceRevenueByDate,
+                    'total_revenue' => $totalRevenue,
+                    'filters' => [
+                        'start_date' => $startDate,
+                        'end_date' => $endDate,
+                        'month_filter' => $monthFilter,
+                        'service_date' => $serviceDate,
+                    ]
+                ]
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Revenue Report Error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Failed to generate revenue report: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Get all payments with pagination
+     */
+    public function getAllPayments(int $perPage = 15): array
+    {
+        try {
+            $payments = Payment::with(['appointment.patient', 'appointment.service'])
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
+
+            return [
+                'success' => true,
+                'payments' => $payments
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Get All Payments Error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Failed to retrieve payments: ' . $e->getMessage()
+            ];
+        }
     }
 }

@@ -62,4 +62,86 @@ class DashboardController extends Controller
         
         return view($dashboardView['view'], $dashboardView['data']);
     }
+
+    // ==================== API METHODS ====================
+
+    /**
+     * API: Get dashboard data based on user role
+     */
+    public function apiIndex()
+    {
+        $user = Auth::user();
+        $dashboardData = $this->strategyFactory->getDashboardData($user);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $dashboardData
+        ], 200);
+    }
+
+    /**
+     * API: Get patient dashboard data
+     */
+    public function apiPatient()
+    {
+        $user = Auth::user();
+        
+        if (!$user->isPatient()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access to patient dashboard.'
+            ], 403);
+        }
+
+        $dashboardData = $this->strategyFactory->getDashboardData($user);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $dashboardData
+        ], 200);
+    }
+
+    /**
+     * API: Get doctor dashboard data
+     */
+    public function apiDoctor()
+    {
+        $user = Auth::user();
+        
+        if (!$user->isDoctor()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access to doctor dashboard.'
+            ], 403);
+        }
+
+        $dashboardData = $this->strategyFactory->getDashboardData($user);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $dashboardData
+        ], 200);
+    }
+
+    /**
+     * API: Get admin dashboard data
+     */
+    public function apiAdmin()
+    {
+        $user = Auth::user();
+        
+        if (!$user->isAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access to admin dashboard.'
+            ], 403);
+        }
+
+        $dashboardData = $this->strategyFactory->getDashboardData($user);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $dashboardData
+        ], 200);
+    }
 }

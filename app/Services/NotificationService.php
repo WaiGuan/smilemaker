@@ -367,4 +367,29 @@ class NotificationService
             ];
         }
     }
+
+    /**
+     * Create payment notification
+     */
+    public function createPaymentNotification(int $userId, float $amount, string $serviceName, string $status): array
+    {
+        try {
+            if ($status === 'success') {
+                $message = "Your payment of RM" . number_format($amount, 2) . " for {$serviceName} has been processed successfully.";
+                $type = 'success';
+            } else {
+                $message = "Your payment of RM" . number_format($amount, 2) . " for {$serviceName} has failed. Please try again.";
+                $type = 'error';
+            }
+
+            return $this->createNotification($userId, $message, $type);
+
+        } catch (\Exception $e) {
+            Log::error('Create Payment Notification Error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Failed to create payment notification: ' . $e->getMessage()
+            ];
+        }
+    }
 }
