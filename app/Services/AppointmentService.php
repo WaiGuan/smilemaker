@@ -7,11 +7,19 @@ use App\Models\Service;
 use App\Models\User;
 use App\Models\Payment;
 use App\Models\Notification;
+use App\Services\PaymentApiService;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class AppointmentService
 {
+    protected $paymentApiService;
+
+    public function __construct(PaymentApiService $paymentApiService)
+    {
+        $this->paymentApiService = $paymentApiService;
+    }
+
     /**
      * Create a new appointment
      */
@@ -250,6 +258,81 @@ class AppointmentService
             return [
                 'success' => false,
                 'error' => 'Failed to update appointment: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Get appointment with payment information from Payment API
+     */
+    public function getAppointmentWithPaymentInfo(int $appointmentId): array
+    {
+        try {
+            // Get payment information from Payment Management API
+            $paymentResult = $this->paymentApiService->getPaymentByAppointment($appointmentId);
+            
+            if (!$paymentResult['success']) {
+                return [
+                    'success' => false,
+                    'error' => 'Failed to retrieve payment information: ' . $paymentResult['error']
+                ];
+            }
+
+            // Get appointment details
+            $appointment = Appointment::with(['service', 'patient', 'doctor'])->find($appointmentId);
+            
+            if (!$appointment) {
+                return [
+                    'success' => false,
+                    'error' => 'Appointment not found'
+                ];
+            }
+
+            return [
+                'success' => true,
+                'data' => [
+                    'appointment' => $appointment,
+                    'payment' => $paymentResult['data'],
+                    'payment_from_api' => true
+                ]
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Get Appointment with Payment Info Error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Failed to retrieve appointment with payment information: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Verify payment eligibility for appointment
+     */
+    public function verifyAppointmentPaymentEligibility(int $userId, int $appointmentId): array
+    {
+        try {
+            // Use Payment API to verify eligibility
+            $eligibilityResult = $this->paymentApiService->verifyPaymentEligibility($userId, $appointmentId);
+            
+            if (!$eligibilityResult['success']) {
+                return [
+                    'success' => false,
+                    'error' => 'Payment eligibility verification failed: ' . $eligibilityResult['error']
+                ];
+            }
+
+            return [
+                'success' => true,
+                'data' => $eligibilityResult['data'],
+                'message' => 'Payment eligibility verified successfully'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Verify Appointment Payment Eligibility Error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Failed to verify payment eligibility: ' . $e->getMessage()
             ];
         }
     }

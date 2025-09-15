@@ -458,6 +458,46 @@ class AppointmentController extends Controller
     }
 
     /**
+     * API: Get appointment with payment information from Payment API
+     */
+    public function apiGetAppointmentWithPaymentInfo(Appointment $appointment)
+    {
+        $user = Auth::user();
+        
+        // Check authorization
+        if (!$user->isAdmin() && $appointment->patient_id !== $user->id && $appointment->doctor_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access to appointment information.'
+            ], 403);
+        }
+
+        $result = $this->appointmentService->getAppointmentWithPaymentInfo($appointment->id);
+
+        return response()->json($result, $result['success'] ? 200 : 400);
+    }
+
+    /**
+     * API: Verify payment eligibility for appointment
+     */
+    public function apiVerifyPaymentEligibility(Request $request, Appointment $appointment)
+    {
+        $user = Auth::user();
+        
+        // Check authorization
+        if (!$user->isAdmin() && $appointment->patient_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized to verify payment eligibility for this appointment.'
+            ], 403);
+        }
+
+        $result = $this->appointmentService->verifyAppointmentPaymentEligibility($user->id, $appointment->id);
+
+        return response()->json($result, $result['success'] ? 200 : 400);
+    }
+
+    /**
      * API: Reschedule an appointment
      */
     public function apiReschedule(Request $request, Appointment $appointment)

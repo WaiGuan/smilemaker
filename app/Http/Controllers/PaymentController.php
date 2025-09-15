@@ -416,6 +416,42 @@ class PaymentController extends Controller
     }
 
     /**
+     * API: Verify payment eligibility using external APIs
+     */
+    public function apiVerifyPaymentEligibility(Request $request)
+    {
+        $user = Auth::user();
+        
+        $request->validate([
+            'appointment_id' => 'required|integer|exists:appointments,id'
+        ]);
+
+        $result = $this->paymentService->verifyPaymentEligibility($user->id, $request->appointment_id);
+
+        return response()->json($result, $result['success'] ? 200 : 400);
+    }
+
+    /**
+     * API: Get enhanced payment information with external API data
+     */
+    public function apiGetEnhancedPaymentInfo(Request $request, Payment $payment)
+    {
+        $user = Auth::user();
+
+        // Check authorization
+        if (!$user->isAdmin() && $payment->appointment->patient_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access to payment information.'
+            ], 403);
+        }
+
+        $result = $this->paymentService->getEnhancedPaymentInfo($payment->id);
+
+        return response()->json($result, $result['success'] ? 200 : 400);
+    }
+
+    /**
      * API: Get revenue report
      */
     public function apiRevenueReport(Request $request)

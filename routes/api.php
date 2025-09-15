@@ -58,6 +58,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/appointments/my', [AppointmentController::class, 'apiMyAppointments']);
     Route::post('/appointments/{appointment}/cancel', [AppointmentController::class, 'apiCancel']);
     Route::post('/appointments/{appointment}/reschedule', [AppointmentController::class, 'apiReschedule']);
+    Route::get('/appointments/{appointment}/payment-info', [AppointmentController::class, 'apiGetAppointmentWithPaymentInfo']);
+    Route::post('/appointments/{appointment}/verify-payment-eligibility', [AppointmentController::class, 'apiVerifyPaymentEligibility']);
     
     // Payment routes
     Route::get('/payments', [PaymentController::class, 'apiIndex']);
@@ -65,6 +67,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/payments/{payment}/process', [PaymentController::class, 'apiProcess']);
     Route::post('/payments/confirm', [PaymentController::class, 'apiConfirmPayment']);
     Route::get('/payments/revenue-report', [PaymentController::class, 'apiRevenueReport']);
+    Route::post('/payments/verify-eligibility', [PaymentController::class, 'apiVerifyPaymentEligibility']);
+    Route::get('/payments/{payment}/enhanced-info', [PaymentController::class, 'apiGetEnhancedPaymentInfo']);
     
     // Notification routes
     Route::get('/notifications', [NotificationController::class, 'apiIndex']);

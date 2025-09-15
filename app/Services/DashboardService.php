@@ -7,11 +7,19 @@ use App\Models\Payment;
 use App\Models\Service;
 use App\Models\User;
 use App\Models\Notification;
+use App\Services\PaymentApiService;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class DashboardService
 {
+    protected $paymentApiService;
+
+    public function __construct(PaymentApiService $paymentApiService)
+    {
+        $this->paymentApiService = $paymentApiService;
+    }
+
     /**
      * Get patient dashboard data
      */
@@ -224,7 +232,39 @@ class DashboardService
     }
 
     /**
-     * Get revenue statistics
+     * Get revenue statistics from Payment API
+     */
+    public function getRevenueStatsFromApi(array $filters = []): array
+    {
+        try {
+            // Get revenue report from Payment Management API
+            $revenueResult = $this->paymentApiService->getRevenueReport($filters);
+            
+            if (!$revenueResult['success']) {
+                // Fallback to local calculation if API fails
+                return $this->getRevenueStats();
+            }
+
+            return [
+                'success' => true,
+                'data' => $revenueResult['data'],
+                'from_api' => true
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Get Revenue Stats from API Error: ' . $e->getMessage());
+            // Fallback to local calculation
+            return [
+                'success' => true,
+                'data' => $this->getRevenueStats(),
+                'from_api' => false,
+                'fallback_reason' => 'API unavailable'
+            ];
+        }
+    }
+
+    /**
+     * Get revenue statistics (local fallback)
      */
     private function getRevenueStats(): array
     {

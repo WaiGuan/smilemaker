@@ -41,4 +41,22 @@ return [
         'currency' => env('PAYMENT_CURRENCY', 'usd'),
     ],
 
+    'user_management' => [
+        'base_url' => env('USER_MANAGEMENT_API_URL', 'http://localhost:8001/api/v1'),
+        'api_token' => env('USER_MANAGEMENT_API_TOKEN'),
+        'timeout' => env('USER_MANAGEMENT_API_TIMEOUT', 30),
+    ],
+
+    'appointment_management' => [
+        'base_url' => env('APPOINTMENT_MANAGEMENT_API_URL', 'http://localhost:8002/api/v1'),
+        'api_token' => env('APPOINTMENT_MANAGEMENT_API_TOKEN'),
+        'timeout' => env('APPOINTMENT_MANAGEMENT_API_TIMEOUT', 30),
+    ],
+
+    'payment_management' => [
+        'base_url' => env('PAYMENT_MANAGEMENT_API_URL', 'http://localhost:8000/api/v1'),
+        'api_token' => env('PAYMENT_MANAGEMENT_API_TOKEN'),
+        'timeout' => env('PAYMENT_MANAGEMENT_API_TIMEOUT', 30),
+    ],
+
 ];

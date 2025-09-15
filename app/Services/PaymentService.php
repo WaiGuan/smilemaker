@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Payment;
 use App\Models\Appointment;
 use App\Services\NotificationService;
+use App\Services\UserApiService;
+use App\Services\AppointmentApiService;
 use Stripe\Stripe;
 use Stripe\PaymentIntent;
 use Stripe\Exception\ApiErrorException;
@@ -13,12 +15,109 @@ use Illuminate\Support\Facades\Log;
 class PaymentService
 {
     protected $notificationService;
+    protected $userApiService;
+    protected $appointmentApiService;
 
-    public function __construct(NotificationService $notificationService)
-    {
+    public function __construct(
+        NotificationService $notificationService,
+        UserApiService $userApiService,
+        AppointmentApiService $appointmentApiService
+    ) {
         // Initialize Stripe with secret key
         Stripe::setApiKey(config('services.stripe.secret'));
         $this->notificationService = $notificationService;
+        $this->userApiService = $userApiService;
+        $this->appointmentApiService = $appointmentApiService;
+    }
+
+    /**
+     * Verify user and appointment before payment processing
+     */
+    public function verifyPaymentEligibility(int $userId, int $appointmentId): array
+    {
+        try {
+            // Verify user exists and has payment permissions
+            $userResult = $this->userApiService->checkPaymentPermission($userId);
+            if (!$userResult['success']) {
+                return [
+                    'success' => false,
+                    'error' => 'User payment permission verification failed: ' . $userResult['error']
+                ];
+            }
+
+            // Verify appointment exists and is eligible for payment
+            $appointmentResult = $this->appointmentApiService->verifyAppointmentForPayment($appointmentId);
+            if (!$appointmentResult['success']) {
+                return [
+                    'success' => false,
+                    'error' => 'Appointment payment verification failed: ' . $appointmentResult['error']
+                ];
+            }
+
+            return [
+                'success' => true,
+                'message' => 'Payment eligibility verified',
+                'user_permissions' => $userResult['data'],
+                'appointment_eligibility' => $appointmentResult['data']
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Payment Eligibility Verification Error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Payment eligibility verification failed: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Get enhanced payment information with external API data
+     */
+    public function getEnhancedPaymentInfo(int $paymentId): array
+    {
+        try {
+            $payment = Payment::with('appointment')->find($paymentId);
+            if (!$payment) {
+                return [
+                    'success' => false,
+                    'error' => 'Payment not found'
+                ];
+            }
+
+            // Get user details from User Management API
+            $userResult = $this->userApiService->getUserDetails($payment->appointment->patient_id);
+            $userDetails = $userResult['success'] ? $userResult['data'] : null;
+
+            // Get appointment details from Appointment Management API
+            $appointmentResult = $this->appointmentApiService->getAppointmentDetails($payment->appointment_id);
+            $appointmentDetails = $appointmentResult['success'] ? $appointmentResult['data'] : null;
+
+            // Get service details from Appointment Management API
+            $serviceResult = $this->appointmentApiService->getServiceDetails($payment->appointment->service_id);
+            $serviceDetails = $serviceResult['success'] ? $serviceResult['data'] : null;
+
+            return [
+                'success' => true,
+                'data' => [
+                    'payment' => $payment,
+                    'user_details' => $userDetails,
+                    'appointment_details' => $appointmentDetails,
+                    'service_details' => $serviceDetails,
+                    'api_status' => [
+                        'user_api' => $userResult['success'],
+                        'appointment_api' => $appointmentResult['success'],
+                        'service_api' => $serviceResult['success']
+                    ]
+                ]
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Enhanced Payment Info Error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Failed to retrieve enhanced payment information: ' . $e->getMessage()
+            ];
+        }
     }
 
     /**
@@ -100,6 +199,12 @@ class PaymentService
                     'paid_at' => now(),
                 ]);
 
+                // Update appointment payment status via external API
+                $appointmentUpdateResult = $this->appointmentApiService->updateAppointmentPaymentStatus(
+                    $payment->appointment_id, 
+                    'paid'
+                );
+
                 // Send notification to patient
                 $this->sendPaymentNotification($payment, 'success');
 
@@ -107,12 +212,19 @@ class PaymentService
                     'success' => true,
                     'message' => 'Payment confirmed successfully',
                     'payment' => $payment,
+                    'appointment_updated' => $appointmentUpdateResult['success']
                 ];
             } else {
                 $payment->update([
                     'status' => 'failed',
                     'stripe_payment_intent_id' => $paymentIntentId,
                 ]);
+
+                // Update appointment payment status via external API
+                $appointmentUpdateResult = $this->appointmentApiService->updateAppointmentPaymentStatus(
+                    $payment->appointment_id, 
+                    'failed'
+                );
 
                 // Send notification to patient
                 $this->sendPaymentNotification($payment, 'failed');
@@ -121,6 +233,7 @@ class PaymentService
                     'success' => false,
                     'error' => 'Payment failed: ' . $paymentIntent->status,
                     'payment' => $payment,
+                    'appointment_updated' => $appointmentUpdateResult['success']
                 ];
             }
 
