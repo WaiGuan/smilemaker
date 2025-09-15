@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Events\UserLoggedIn;
+use App\Events\UserRegistered;
+use App\Events\UserLoggedOut;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -24,12 +27,8 @@ class AuthService
             if (Auth::attempt($credentials, $remember)) {
                 $user = Auth::user();
                 
-                // Log successful login
-                Log::info('Login successful', [
-                    'user_id' => $user->id,
-                    'user_role' => $user->role,
-                    'user_email' => $user->email
-                ]);
+                // Dispatch UserLoggedIn event instead of direct logging
+                event(new UserLoggedIn($user, request()->ip(), request()->userAgent()));
                 
                 return [
                     'success' => true,
@@ -76,6 +75,9 @@ class AuthService
                 'phone' => $data['phone'] ?? null,
             ]);
 
+            // Dispatch UserRegistered event
+            event(new UserRegistered($user));
+
             // Log the user in
             Auth::login($user);
 
@@ -112,6 +114,11 @@ class AuthService
             }
             
             Auth::logout();
+            
+            // Dispatch UserLoggedOut event if user was logged in
+            if ($user) {
+                event(new UserLoggedOut($user));
+            }
             
             Log::info('Logout successful');
             
