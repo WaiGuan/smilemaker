@@ -247,10 +247,23 @@ class PaymentController extends Controller
         }
 
         $data = $result['data'];
+        
+        // Extract individual variables for the view
+        $totalRevenue = $data['total_revenue'];
+        $dailyRevenue = $data['daily_revenue'];
+        $monthlyRevenue = $data['monthly_revenue'];
+        $serviceRevenue = $data['service_revenue'];
+        $monthlyServiceRevenue = $data['monthly_service_revenue'];
+        $serviceRevenueByDate = $data['service_revenue_by_date'];
         $filters = $data['filters'];
 
         return view('payments.revenue-report', compact(
-            'data',
+            'totalRevenue',
+            'dailyRevenue',
+            'monthlyRevenue',
+            'serviceRevenue',
+            'monthlyServiceRevenue',
+            'serviceRevenueByDate',
             'filters'
         ));
     }

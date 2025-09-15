@@ -58,39 +58,22 @@
                         <!-- Demo Card Information -->
                         <div class="alert alert-info mb-3">
                             <h6><i class="fas fa-credit-card me-2"></i>Test Cards</h6>
-                            <p class="mb-2"><small class="text-muted">For security, only these test cards are accepted:</small></p>
+                            <p class="mb-2"><small class="text-muted">For testing purposes, use these test cards:</small></p>
                             <div class="row">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <strong>Success:</strong><br>
-                                    <code>4242 4242 4242 4242</code><br>
-                                    <small class="text-muted">Any future date, any CVC</small>
+                                    <code>4242 4242 4242 4242</code>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <strong>Decline:</strong><br>
-                                    <code>4000 0000 0000 0002</code><br>
-                                    <small class="text-muted">General decline</small>
+                                    <code>4000 0000 0000 0002</code>
                                 </div>
-                            </div>
-                            <div class="row mt-2">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <strong>Insufficient Funds:</strong><br>
                                     <code>4000 0000 0000 9995</code>
                                 </div>
-                                <div class="col-md-6">
-                                    <strong>Lost Card:</strong><br>
-                                    <code>4000 0000 0000 9987</code>
-                                </div>
                             </div>
-                            <div class="row mt-2">
-                                <div class="col-md-6">
-                                    <strong>Expired Card:</strong><br>
-                                    <code>4000 0000 0000 0069</code>
-                                </div>
-                                <div class="col-md-6">
-                                    <strong>Incorrect CVC:</strong><br>
-                                    <code>4000 0000 0000 0127</code>
-                                </div>
-                            </div>
+                            <p class="mb-0 mt-2"><small class="text-muted">Use any future expiry date and any 3-digit CVC</small></p>
                         </div>
 
                         <!-- Manual Card Form (CSP-friendly) -->
@@ -165,17 +148,6 @@
                         @if($payment->paid_at)
                             <small class="text-muted">Paid on {{ $payment->paid_at->format('M d, Y H:i') }}</small>
                         @endif
-                    </div>
-                @elseif($payment->status === 'failed')
-                    <div class="alert alert-danger text-center">
-                        <i class="fas fa-times-circle fa-2x mb-2"></i>
-                        <h5>Payment Failed!</h5>
-                        <p class="mb-0">Your payment could not be processed. Please try again.</p>
-                        <div class="mt-3">
-                            <a href="{{ route('payments.show', $payment) }}" class="btn btn-outline-danger">
-                                <i class="fas fa-redo me-2"></i>Try Again
-                            </a>
-                        </div>
                     </div>
                 @endif
             </div>
