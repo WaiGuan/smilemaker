@@ -3,15 +3,27 @@
 /// Author: Tan Huei Qing, Yuen Yun Jia, Foo Tek Sian, Pooi Wai Guan
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\DoctorController;
+use Illuminate\Foundation\Auth\EmailVerificationRequest;
 
 // Public routes
 Route::get('/', function () {
+    if (Auth::check()) {
+        $user = Auth::user();
+        if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
+            return redirect('/admin/dashboard');
+        }
+        if (method_exists($user, 'isDoctor') && $user->isDoctor()) {
+            return redirect('/doctor/dashboard');
+        }
+        return redirect('/patient/dashboard');
+    }
     return redirect()->route('login');
 });
 
@@ -23,8 +35,32 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
 });
 
-// Protected routes (require authentication)
+// Email verification notice & verification routes
 Route::middleware('auth')->group(function () {
+    Route::get('/email/verify', function () {
+        return view('auth.verify-email');
+    })->name('verification.notice');
+
+    Route::post('/email/verification-notification', function (\Illuminate\Http\Request $request) {
+        $request->user()->sendEmailVerificationNotification();
+        return back()->with('status', 'verification-link-sent');
+    })->middleware('throttle:6,1')->name('verification.send');
+});
+
+Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
+    $request->fulfill();
+    $user = $request->user();
+    if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
+        return redirect('/admin/dashboard');
+    }
+    if (method_exists($user, 'isDoctor') && $user->isDoctor()) {
+        return redirect('/doctor/dashboard');
+    }
+    return redirect('/patient/dashboard');
+})->middleware(['auth', 'signed'])->name('verification.verify');
+
+// Protected routes (require authentication + verified email)
+Route::middleware(['auth', 'verified'])->group(function () {
     // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 

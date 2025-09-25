@@ -28,10 +28,25 @@ class AuthService
 
             if (Auth::attempt($credentials, $remember)) {
                 $user = Auth::user();
-                
+
+                // If email not verified, send verification link and redirect to notice
+                if (method_exists($user, 'hasVerifiedEmail') && !$user->hasVerifiedEmail()) {
+                    try {
+                        $user->sendEmailVerificationNotification();
+                    } catch (\Throwable $e) {
+                        Log::warning('Failed sending verification email: ' . $e->getMessage());
+                    }
+
+                    return [
+                        'success' => true,
+                        'user' => $user,
+                        'redirect_url' => route('verification.notice')
+                    ];
+                }
+
                 // Dispatch UserLoggedIn event instead of direct logging
                 event(new UserLoggedIn($user, request()->ip(), request()->userAgent()));
-                
+
                 return [
                     'success' => true,
                     'user' => $user,
